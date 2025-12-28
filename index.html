@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>NutriTrack 87</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8aacc8">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      // Registro do Service Worker com nome único para evitar conflito
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw-nutri.js')
+            .then(reg => console.log("Nutri87: Sistema Isolado Ativo"))
+            .catch(err => console.error("Erro de Isolação:", err));
+        });
+      }
+    </script>
+    <style>
+        :root {
+            --bg: #2c2c34; --card-bg: #3e3e4a; --text: #e0e0e0;
+            --primary: #8aacc8; --success: #a3c9a8; --danger: #e29595;
+            --accent: #d7b9d5; --border: #1a1a1f;
+        }
+        body {
+            font-family: 'Press Start 2P', cursive; background-color: var(--bg);
+            color: var(--text); padding: 15px; font-size: 8px; line-height: 1.6;
+            image-rendering: pixelated; margin: 0;
+        }
+        .container { max-width: 500px; margin: auto; padding-bottom: 50px; }
+        .card {
+            background: var(--card-bg); border: 4px solid var(--border);
+            box-shadow: 4px 4px 0px var(--border); padding: 15px; margin-bottom: 20px;
+        }
+        h2, h3 { color: var(--accent); text-transform: uppercase; margin-top: 0; text-shadow: 2px 2px var(--border); }
+        input, select, button {
+            font-family: 'Press Start 2P', cursive; background: #2c2c34;
+            border: 3px solid var(--border); color: var(--text); padding: 10px;
+            font-size: 8px; width: 100%; margin-bottom: 8px; box-sizing: border-box;
+            outline: none;
+        }
+        button { background: var(--primary); color: var(--border); cursor: pointer; box-shadow: 3px 3px 0px var(--border); }
+        button:active { transform: translate(2px, 2px); box-shadow: 0px 0px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .prog-item { margin-bottom: 12px; }
+        .bar-bg { background: #1a1a1f; height: 14px; border: 2px solid var(--border); padding: 2px; }
+        .bar-fill { height: 100%; width: 0%; transition: width 0.4s steps(10); }
+        .water-ctrl { display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 2px dashed var(--primary); }
+        .log-item { border-bottom: 2px solid var(--border); padding: 8px 0; display: flex; justify-content: space-between; align-items: center; }
+        canvas { background: #fff; border: 3px solid var(--border); margin-top: 10px; padding: 5px; max-width: 100%; }
+        .quick-water { background: #3498db; color: #fff; font-size: 10px; margin-bottom: 20px; padding: 15px; border: 4px solid #1a1a1f; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 style="text-align: center; font-size: 10px; margin-bottom: 25px;">[ NUTRI_TRACK_87 ]</h2>
+
+    <button class="quick-water" onclick="addWater(250)">+ BEBER 250ML ÁGUA</button>
+
+    <div class="card">
+        <h3>1. PLANO_MEDICO</h3>
+        <div class="grid">
+            <input id="gcal" type="number" placeholder="KCAL">
+            <input id="gprot" type="number" placeholder="PROT(g)">
+            <input id="gcarb" type="number" placeholder="CARB(g)">
+            <input id="gfat" type="number" placeholder="GORD(g)">
+        </div>
+        <input id="gfiber" type="number" placeholder="FIBRA(g)">
+        <button onclick="saveGoals()" style="background: var(--success)">SALVAR PLANO</button>
+    </div>
+
+    <div class="card">
+        <h3>2. STATUS_PESO</h3>
+        <div class="grid" style="grid-template-columns: 2fr 1fr;">
+            <input id="weight-input" type="number" step="0.1" placeholder="PESO (KG)">
+            <button onclick="saveWeight()" style="background: var(--accent)">LOG</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>3. REFEICAO</h3>
+        <input type="date" id="date">
+        <div class="grid">
+            <select id="meal">
+                <option>CAFE</option><option selected>ALMOCO</option>
+                <option>LANCHE</option><option>JANTAR</option><option>OUTRO</option>
+            </select>
+            <select id="hunger">
+                <option value="">FOME?</option>
+                <option value="sem">NAO</option>
+                <option value="com">SIM</option>
+            </select>
+        </div>
+        <div class="grid">
+            <input id="cal" type="number" placeholder="KCAL">
+            <input id="prot" type="number" placeholder="PROT">
+            <input id="carb" type="number" placeholder="CARB">
+            <input id="fat" type="number" placeholder="GORD">
+        </div>
+        <input id="fiber" type="number" placeholder="FIBRAS">
+        <button onclick="addMeal()">ADICIONAR</button>
+    </div>
+
+    <div class="card">
+        <h3>4. HIDRATACAO</h3>
+        <div style="margin-bottom: 5px;">HOJE: <span id="water-stat">0/0 ml</span></div>
+        <div class="bar-bg"><div id="water-bar" class="bar-fill" style="background: #3498db;"></div></div>
+        <div class="water-ctrl" style="margin-top: 10px;">
+            <button style="width: 50px;" onclick="addWater(-250)">-</button>
+            <button style="width: 50px;" onclick="addWater(250)">+</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>5. HOJE</h3>
+        <div id="summary-bars"></div>
+        <canvas id="macroChart"></canvas>
+    </div>
+
+    <div class="card">
+        <h3>6. EVOLUCAO</h3>
+        <canvas id="weightChart"></canvas>
+    </div>
+
+    <div class="card">
+        <h3>7. LOG_SESSAO</h3>
+        <div id="day-log"></div>
+        <button onclick="window.print()" style="background: #777; margin-top: 15px;">EXPORT_PDF</button>
+        <button onclick="clearAll()" style="background: var(--danger); margin-top: 5px; font-size: 6px;">LIMPAR TUDO</button>
+    </div>
+</div>
+
+<script>
+    // DADOS HISTÓRICOS MANTIDOS
+    const initialHistory = [
+        { date: '2025-12-21', meal: 'CAFE', cal: 180, prot: 10, carb: 22, fat: 6, fiber: 1 },
+        { date: '2025-12-21', meal: 'ALMOCO', cal: 550, prot: 45, carb: 20, fat: 35, fiber: 6 },
+        { date: '2025-12-21', meal: 'LANCHE', cal: 180, prot: 25, carb: 10, fat: 2, fiber: 0 },
+        { date: '2025-12-21', meal: 'JANTAR', cal: 250, prot: 20, carb: 25, fat: 8, fiber: 4 },
+        { date: '2025-12-22', meal: 'CAFE', cal: 400, prot: 30, carb: 50, fat: 10, fiber: 7 },
+        { date: '2025-12-22', meal: 'ALMOCO', cal: 250, prot: 20, carb: 25, fat: 8, fiber: 4 },
+        { date: '2025-12-22', meal: 'LANCHE', cal: 280, prot: 25, carb: 28, fat: 8, fiber: 6 },
+        { date: '2025-12-22', meal: 'JANTAR', cal: 500, prot: 35, carb: 50, fat: 20, fiber: 5 },
+        { date: '2025-12-22', meal: 'OUTRO', cal: 380, prot: 5, carb: 45, fat: 20, fiber: 2 },
+        { date: '2025-12-23', meal: 'CAFE', cal: 250, prot: 5, carb: 40, fat: 10, fiber: 2 },
+        { date: '2025-12-23', meal: 'ALMOCO', cal: 350, prot: 25, carb: 25, fat: 15, fiber: 5 },
+        { date: '2025-12-23', meal: 'LANCHE', cal: 1000, prot: 45, carb: 80, fat: 60, fiber: 4 },
+        { date: '2025-12-23', meal: 'JANTAR', cal: 600, prot: 20, carb: 50, fat: 35, fiber: 3 },
+        { date: '2025-12-24', meal: 'CAFE', cal: 400, prot: 30, carb: 50, fat: 10, fiber: 7 },
+        { date: '2025-12-24', meal: 'ALMOCO', cal: 300, prot: 15, carb: 40, fat: 12, fiber: 2 },
+        { date: '2025-12-24', meal: 'JANTAR', cal: 450, prot: 35, carb: 20, fat: 18, fiber: 5 },
+        { date: '2025-12-24', meal: 'OUTRO', cal: 80, prot: 1, carb: 15, fat: 3, fiber: 0 },
+        { date: '2025-12-25', meal: 'CAFE', cal: 2, prot: 0, carb: 0, fat: 0, fiber: 0 },
+        { date: '2025-12-25', meal: 'ALMOCO', cal: 500, prot: 40, carb: 20, fat: 30, fiber: 6 },
+        { date: '2025-12-25', meal: 'LANCHE', cal: 270, prot: 22, carb: 8, fat: 14, fiber: 12 },
+        { date: '2025-12-25', meal: 'JANTAR', cal: 400, prot: 25, carb: 30, fat: 20, fiber: 4 },
+        { date: '2025-12-26', meal: 'CAFE', cal: 330, prot: 18, carb: 28, fat: 18, fiber: 6 },
+        { date: '2025-12-26', meal: 'ALMOCO', cal: 580, prot: 35, carb: 30, fat: 35, fiber: 8 },
+        { date: '2025-12-26', meal: 'LANCHE', cal: 370, prot: 32, carb: 33, fat: 12, fiber: 10 },
+        { date: '2025-12-26', meal: 'JANTAR', cal: 480, prot: 32, carb: 28, fat: 22, fiber: 5 },
+        { date: '2025-12-26', meal: 'OUTRO', cal: 30, prot: 0, carb: 6, fat: 2, fiber: 0 },
+        { date: '2025-12-27', meal: 'CAFE', cal: 360, prot: 32, carb: 33, fat: 12, fiber: 10 }
+    ];
+
+    const initialWeights = { '2025-12-21': 105, '2025-12-27': 103 };
+
+    if (!localStorage.getItem("meals") || JSON.parse(localStorage.getItem("meals")).length === 0) {
+        localStorage.setItem("meals", JSON.stringify(initialHistory));
+        localStorage.setItem("weightLog", JSON.stringify(initialWeights));
+    }
+
+    let meals = JSON.parse(localStorage.getItem("meals")) || [];
+    let waterLog = JSON.parse(localStorage.getItem("water")) || {};
+    let weightLog = JSON.parse(localStorage.getItem("weightLog")) || {}; 
+    let goals = JSON.parse(localStorage.getItem("goals")) || {cal:1750, prot:140, carb:150, fat:55, fiber:25, water:3500};
+
+    const dateInput = document.getElementById('date');
+    dateInput.valueAsDate = new Date();
+
+    function fillGoalInputs() {
+        document.getElementById('gcal').value = goals.cal;
+        document.getElementById('gprot').value = goals.prot;
+        document.getElementById('gcarb').value = goals.carb;
+        document.getElementById('gfat').value = goals.fat;
+        document.getElementById('gfiber').value = goals.fiber;
+    }
+
+    function saveGoals(){
+        goals = {
+            cal: +document.getElementById('gcal').value,
+            prot: +document.getElementById('gprot').value,
+            carb: +document.getElementById('gcarb').value,
+            fat: +document.getElementById('gfat').value,
+            fiber: +document.getElementById('gfiber').value,
+            water: 3500
+        };
+        localStorage.setItem("goals", JSON.stringify(goals));
+        draw();
+        alert("PLANO_SALVO!");
+    }
+
+    function saveWeight() {
+        const w = document.getElementById('weight-input').value;
+        if(!w) return;
+        weightLog[dateInput.value] = +w;
+        localStorage.setItem("weightLog", JSON.stringify(weightLog));
+        document.getElementById('weight-input').value = "";
+        draw();
+    }
+
+    function addMeal(){
+        if(!cal.value) return;
+        meals.push({
+            id: Date.now(), date: dateInput.value, meal: meal.value,
+            cal: +cal.value, prot: +prot.value, carb: +carb.value, fat: +fat.value, fiber: +fiber.value
+        });
+        localStorage.setItem("meals", JSON.stringify(meals));
+        ['cal','prot','carb','fat','fiber'].forEach(i => document.getElementById(i).value="");
+        draw();
+    }
+
+    function deleteMeal(id) {
+        meals = meals.filter(m => m.id !== id);
+        localStorage.setItem("meals", JSON.stringify(meals));
+        draw();
+    }
+
+    function clearAll() {
+        if(confirm("LIMPAR TUDO?")) { localStorage.clear(); location.reload(); }
+    }
+
+    function addWater(ml) {
+        const d = dateInput.value;
+        waterLog[d] = (waterLog[d] || 0) + ml;
+        localStorage.setItem("water", JSON.stringify(waterLog));
+        draw();
+    }
+
+    let macroChart, weightChart;
+
+    function draw(){
+        const d = dateInput.value;
+        const dayMeals = meals.filter(m => m.date === d);
+        const t = dayMeals.reduce((a, b) => ({
+            cal: a.cal + b.cal, prot: a.prot + b.prot, carb: a.carb + b.carb, fat: a.fat + b.fat, fiber: a.fiber + b.fiber
+        }), {cal:0, prot:0, carb:0, fat:0, fiber:0});
+
+        const nutrients = [
+            { l: 'KCAL', v: t.cal, g: goals.cal, c: 'var(--primary)' },
+            { l: 'PROT', v: t.prot, g: goals.prot, c: 'var(--success)' },
+            { l: 'CARB', v: t.carb, g: goals.carb, c: 'var(--accent)' },
+            { l: 'GORD', v: t.fat, g: goals.fat, c: '#f39c12' },
+            { l: 'FIBRA', v: t.fiber, g: goals.fiber, c: '#e67e22' }
+        ];
+
+        document.getElementById('summary-bars').innerHTML = nutrients.map(n => {
+            const p = Math.min((n.v / n.g) * 100, 100);
+            return `<div class="prog-item">
+                <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>${n.l}</span><span>${n.v}/${n.g}</span></div>
+                <div class="bar-bg"><div class="bar-fill" style="width:${p}%; background:${n.c}"></div></div>
+            </div>`;
+        }).join('');
+
+        const wVol = waterLog[d] || 0;
+        document.getElementById('water-stat').innerText = `${wVol}/${goals.water}ml`;
+        document.getElementById('water-bar').style.width = Math.min((wVol/goals.water)*100, 100) + '%';
+
+        document.getElementById('day-log').innerHTML = dayMeals.map(m => `
+            <div class="log-item"><span>${m.meal}:${m.cal}K</span>
+            <button onclick="deleteMeal(${m.id || 0})" style="width:30px;padding:5px;background:var(--danger);box-shadow:none">X</button></div>`).join('');
+
+        renderCharts(t);
+    }
+
+    function renderCharts(t) {
+        Chart.defaults.font.family = "'Press Start 2P'";
+        Chart.defaults.font.size = 6;
+        Chart.defaults.color = '#e0e0e0';
+        if(macroChart) macroChart.destroy();
+        macroChart = new Chart(document.getElementById("macroChart"), {
+            type: 'doughnut',
+            data: { labels: ['P', 'C', 'G'], datasets: [{ data: [t.prot*4, t.carb*4, t.fat*9], backgroundColor: ['#a3c9a8', '#8aacc8', '#d7b9d5'] }] },
+            options: { plugins: { legend: { position: 'bottom' } } }
+        });
+        const weightDates = Object.keys(weightLog).sort();
+        const weightValues = weightDates.map(d => weightLog[d]);
+        if(weightChart) weightChart.destroy();
+        weightChart = new Chart(document.getElementById("weightChart"), {
+            type: 'line',
+            data: {
+                labels: weightDates.map(d => d.split('-')[2] + '/' + d.split('-')[1]),
+                datasets: [{ label: 'KG', data: weightValues, borderColor: '#e29595', borderWidth: 2, fill: false, tension: 0 }]
+            },
+            options: { scales: { y: { ticks: { color: '#e0e0e0' } }, x: { ticks: { color: '#e0e0e0' } } } }
+        });
+    }
+
+    fillGoalInputs();
+    dateInput.onchange = draw;
+    draw();
+</script>
+</body>
+</html>
