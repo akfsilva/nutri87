@@ -1,0 +1,9 @@
+	
+0	
+relation	
+0	"delegate_permission/common.handle_all_urls"
+target	
+namespace	"android_app"
+package_name	"com.nutritrack.lofi87"
+sha256_cert_fingerprints	
+0	"17:EA:E0:6B:29:E0:BC:A9:B7:D9:AD:9B:41:53:9D:6A:37:92:90:DA:F2:0F:F7:BF:11:EA:EE:24:57:E2:44:B1"
