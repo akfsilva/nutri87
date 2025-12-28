@@ -9,12 +9,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-      // Registro do Service Worker com nome único para evitar conflito
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('sw-nutri.js')
-            .then(reg => console.log("Nutri87: Sistema Isolado Ativo"))
-            .catch(err => console.error("Erro de Isolação:", err));
+            .then(reg => console.log("Nutri87: Sistema Ativo"))
+            .catch(err => console.error("Erro:", err));
         });
       }
     </script>
@@ -22,7 +21,7 @@
         :root {
             --bg: #2c2c34; --card-bg: #3e3e4a; --text: #e0e0e0;
             --primary: #8aacc8; --success: #a3c9a8; --danger: #e29595;
-            --accent: #d7b9d5; --border: #1a1a1f;
+            --accent: #d7b9d5; --border: #1a1a1f; --warning: #f1c40f;
         }
         body {
             font-family: 'Press Start 2P', cursive; background-color: var(--bg);
@@ -33,6 +32,11 @@
         .card {
             background: var(--card-bg); border: 4px solid var(--border);
             box-shadow: 4px 4px 0px var(--border); padding: 15px; margin-bottom: 20px;
+        }
+        #backup-alert {
+            background: var(--warning); color: #000; padding: 10px; 
+            margin-bottom: 20px; border: 4px solid var(--border);
+            display: none; text-align: center; font-size: 7px;
         }
         h2, h3 { color: var(--accent); text-transform: uppercase; margin-top: 0; text-shadow: 2px 2px var(--border); }
         input, select, button {
@@ -49,14 +53,17 @@
         .bar-fill { height: 100%; width: 0%; transition: width 0.4s steps(10); }
         .water-ctrl { display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 2px dashed var(--primary); }
         .log-item { border-bottom: 2px solid var(--border); padding: 8px 0; display: flex; justify-content: space-between; align-items: center; }
-        canvas { background: #fff; border: 3px solid var(--border); margin-top: 10px; padding: 5px; max-width: 100%; }
+        canvas { background: #fff; border: 3px solid var(--border); margin-top: 10px; padding: 5px; max-width: 100%; margin-bottom: 15px;}
         .quick-water { background: #3498db; color: #fff; font-size: 10px; margin-bottom: 20px; padding: 15px; border: 4px solid #1a1a1f; cursor: pointer; }
+        .backup-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h2 style="text-align: center; font-size: 10px; margin-bottom: 25px;">[ NUTRI_TRACK_87 ]</h2>
+
+    <div id="backup-alert" onclick="exportData()">⚠️ BACKUP PENDENTE! CLIQUE PARA SALVAR DADOS</div>
 
     <button class="quick-water" onclick="addWater(250)">+ BEBER 250ML ÁGUA</button>
 
@@ -122,154 +129,139 @@
 
     <div class="card">
         <h3>6. EVOLUCAO</h3>
+        <p style="margin: 5px 0;">PESO (HISTÓRICO):</p>
         <canvas id="weightChart"></canvas>
+        <p style="margin: 15px 0 5px 0;">KCAL (ÚLTIMOS 7 DIAS):</p>
+        <canvas id="weeklyChart"></canvas>
+        <p style="margin: 15px 0 5px 0;">PROT (MENSAL):</p>
+        <canvas id="monthlyChart"></canvas>
     </div>
 
     <div class="card">
-        <h3>7. LOG_SESSAO</h3>
-        <div id="day-log"></div>
+        <h3>7. SEGURANÇA & LOG</h3>
+        <div class="backup-btns">
+            <button onclick="exportData()" style="background: #555; color: white;">EXPORTAR BACKUP</button>
+            <button onclick="document.getElementById('importFile').click()" style="background: #555; color: white;">IMPORTAR BACKUP</button>
+            <input type="file" id="importFile" style="display:none" onchange="importData(event)">
+        </div>
+        <div id="day-log" style="margin-top: 15px;"></div>
         <button onclick="window.print()" style="background: #777; margin-top: 15px;">EXPORT_PDF</button>
-        <button onclick="clearAll()" style="background: var(--danger); margin-top: 5px; font-size: 6px;">LIMPAR TUDO</button>
+        <button onclick="clearAll()" style="background: var(--danger); margin-top: 10px; font-size: 6px;">APAGAR TUDO (RESET)</button>
     </div>
 </div>
 
 <script>
-    // DADOS HISTÓRICOS ATUALIZADOS (21/12 a 28/12)
-    const initialHistory = [
-        // Dia 1 - 21/12
+    const fixedHistory = [
         { date: '2025-12-21', meal: 'CAFE', cal: 180, prot: 9, carb: 18, fat: 6, fiber: 1 },
         { date: '2025-12-21', meal: 'ALMOCO', cal: 650, prot: 55, carb: 15, fat: 40, fiber: 4 },
         { date: '2025-12-21', meal: 'LANCHE', cal: 260, prot: 28, carb: 8, fat: 4, fiber: 1 },
-        { date: '2025-12-21', meal: 'OUTRO', cal: 320, prot: 14, carb: 40, fat: 10, fiber: 2 }, // Guiozas
-        { date: '2025-12-21', meal: 'JANTAR', cal: 220, prot: 15, carb: 20, fat: 6, fiber: 3 }, // Sopa
-        
-        // Dia 2 - 22/12
+        { date: '2025-12-21', meal: 'OUTRO', cal: 320, prot: 14, carb: 40, fat: 10, fiber: 2 },
+        { date: '2025-12-21', meal: 'JANTAR', cal: 220, prot: 15, carb: 20, fat: 6, fiber: 3 },
         { date: '2025-12-22', meal: 'CAFE', cal: 400, prot: 32, carb: 45, fat: 10, fiber: 9 },
         { date: '2025-12-22', meal: 'ALMOCO', cal: 350, prot: 25, carb: 30, fat: 10, fiber: 4 },
         { date: '2025-12-22', meal: 'LANCHE', cal: 300, prot: 30, carb: 25, fat: 8, fiber: 6 },
         { date: '2025-12-22', meal: 'JANTAR', cal: 480, prot: 28, carb: 50, fat: 18, fiber: 4 },
-        { date: '2025-12-22', meal: 'OUTRO', cal: 400, prot: 5, carb: 45, fat: 22, fiber: 2 }, // Choco
-
-        // Dia 3 - 23/12
+        { date: '2025-12-22', meal: 'OUTRO', cal: 400, prot: 5, carb: 45, fat: 22, fiber: 2 },
         { date: '2025-12-23', meal: 'CAFE', cal: 250, prot: 4, carb: 35, fat: 10, fiber: 2 },
         { date: '2025-12-23', meal: 'ALMOCO', cal: 420, prot: 30, carb: 30, fat: 18, fiber: 4 },
-        { date: '2025-12-23', meal: 'LANCHE', cal: 1100, prot: 45, carb: 85, fat: 60, fiber: 6 }, // Fast food
+        { date: '2025-12-23', meal: 'LANCHE', cal: 1100, prot: 45, carb: 85, fat: 60, fiber: 6 },
         { date: '2025-12-23', meal: 'JANTAR', cal: 500, prot: 18, carb: 50, fat: 25, fiber: 3 },
-
-        // Dia 4 - 24/12 (Natal)
         { date: '2025-12-24', meal: 'CAFE', cal: 420, prot: 30, carb: 55, fat: 10, fiber: 6 },
         { date: '2025-12-24', meal: 'ALMOCO', cal: 450, prot: 20, carb: 45, fat: 18, fiber: 3 },
-        { date: '2025-12-24', meal: 'JANTAR', cal: 650, prot: 45, carb: 30, fat: 30, fiber: 4 }, // Ceia
-        { date: '2025-12-24', meal: 'OUTRO', cal: 150, prot: 3, carb: 15, fat: 6, fiber: 1 }, // Sobremesa
-
-        // Dia 5 - 25/12
+        { date: '2025-12-24', meal: 'JANTAR', cal: 650, prot: 45, carb: 30, fat: 30, fiber: 4 },
+        { date: '2025-12-24', meal: 'OUTRO', cal: 150, prot: 3, carb: 15, fat: 6, fiber: 1 },
         { date: '2025-12-25', meal: 'CAFE', cal: 20, prot: 0, carb: 0, fat: 0, fiber: 0 },
         { date: '2025-12-25', meal: 'ALMOCO', cal: 780, prot: 55, carb: 25, fat: 45, fiber: 4 },
         { date: '2025-12-25', meal: 'LANCHE', cal: 260, prot: 18, carb: 10, fat: 12, fiber: 8 },
         { date: '2025-12-25', meal: 'JANTAR', cal: 450, prot: 25, carb: 40, fat: 18, fiber: 6 },
-        { date: '2025-12-25', meal: 'OUTRO', cal: 90, prot: 2, carb: 6, fat: 4, fiber: 1 }, // Ceia
-
-        // Dia 6 - 26/12
+        { date: '2025-12-25', meal: 'OUTRO', cal: 90, prot: 2, carb: 6, fat: 4, fiber: 1 },
         { date: '2025-12-26', meal: 'CAFE', cal: 300, prot: 20, carb: 25, fat: 12, fiber: 6 },
         { date: '2025-12-26', meal: 'ALMOCO', cal: 520, prot: 45, carb: 35, fat: 20, fiber: 6 },
         { date: '2025-12-26', meal: 'LANCHE', cal: 360, prot: 32, carb: 35, fat: 10, fiber: 10 },
         { date: '2025-12-26', meal: 'JANTAR', cal: 480, prot: 40, carb: 25, fat: 20, fiber: 4 },
-        { date: '2025-12-26', meal: 'OUTRO', cal: 40, prot: 1, carb: 3, fat: 2, fiber: 0 }, // Ceia
-
-        // Dia 7 - 27/12
+        { date: '2025-12-26', meal: 'OUTRO', cal: 40, prot: 1, carb: 3, fat: 2, fiber: 0 },
         { date: '2025-12-27', meal: 'CAFE', cal: 370, prot: 32, carb: 32, fat: 11, fiber: 11 },
         { date: '2025-12-27', meal: 'ALMOCO', cal: 550, prot: 55, carb: 35, fat: 25, fiber: 10 },
         { date: '2025-12-27', meal: 'JANTAR', cal: 480, prot: 20, carb: 45, fat: 26, fiber: 3 },
-        { date: '2025-12-27', meal: 'OUTRO', cal: 380, prot: 25, carb: 8, fat: 30, fiber: 0 }, // Ceia tardia
-
-        // Dia 8 - 28/12 (Parcial)
+        { date: '2025-12-27', meal: 'OUTRO', cal: 380, prot: 25, carb: 8, fat: 30, fiber: 0 },
         { date: '2025-12-28', meal: 'CAFE', cal: 310, prot: 19, carb: 22, fat: 15, fiber: 5 },
         { date: '2025-12-28', meal: 'ALMOCO', cal: 540, prot: 52, carb: 47, fat: 9, fiber: 6 }
     ];
 
-    const initialWeights = { '2025-12-21': 105, '2025-12-27': 103 };
-
-    if (!localStorage.getItem("meals") || JSON.parse(localStorage.getItem("meals")).length === 0) {
-        localStorage.setItem("meals", JSON.stringify(initialHistory));
-        localStorage.setItem("weightLog", JSON.stringify(initialWeights));
-    }
-
     let meals = JSON.parse(localStorage.getItem("meals")) || [];
+    const missing = fixedHistory.filter(fh => !meals.some(sm => sm.date === fh.date && sm.meal === fh.meal));
+    if(missing.length > 0) { meals = [...meals, ...missing]; localStorage.setItem("meals", JSON.stringify(meals)); }
+
     let waterLog = JSON.parse(localStorage.getItem("water")) || {};
-    let weightLog = JSON.parse(localStorage.getItem("weightLog")) || {}; 
+    let weightLog = JSON.parse(localStorage.getItem("weightLog")) || { '2025-12-21': 105, '2025-12-27': 103 };
     let goals = JSON.parse(localStorage.getItem("goals")) || {cal:1750, prot:140, carb:150, fat:55, fiber:25, water:3500};
+    let lastBackup = localStorage.getItem("lastBackup") || Date.now();
 
     const dateInput = document.getElementById('date');
     dateInput.valueAsDate = new Date();
 
-    function fillGoalInputs() {
-        document.getElementById('gcal').value = goals.cal;
-        document.getElementById('gprot').value = goals.prot;
-        document.getElementById('gcarb').value = goals.carb;
-        document.getElementById('gfat').value = goals.fat;
-        document.getElementById('gfiber').value = goals.fiber;
+    function checkBackup() {
+        const diff = (Date.now() - lastBackup) / (1000 * 60 * 60 * 24);
+        document.getElementById('backup-alert').style.display = diff > 7 ? 'block' : 'none';
     }
 
     function saveGoals(){
-        goals = {
-            cal: +document.getElementById('gcal').value,
-            prot: +document.getElementById('gprot').value,
-            carb: +document.getElementById('gcarb').value,
-            fat: +document.getElementById('gfat').value,
-            fiber: +document.getElementById('gfiber').value,
-            water: 3500
-        };
-        localStorage.setItem("goals", JSON.stringify(goals));
-        draw();
-        alert("PLANO_SALVO!");
+        goals = { cal: +gcal.value, prot: +gprot.value, carb: +gcarb.value, fat: +gfat.value, fiber: +gfiber.value, water: 3500 };
+        localStorage.setItem("goals", JSON.stringify(goals)); draw();
     }
 
     function saveWeight() {
-        const w = document.getElementById('weight-input').value;
-        if(!w) return;
-        weightLog[dateInput.value] = +w;
-        localStorage.setItem("weightLog", JSON.stringify(weightLog));
-        document.getElementById('weight-input').value = "";
-        draw();
+        if(!document.getElementById('weight-input').value) return;
+        weightLog[dateInput.value] = +document.getElementById('weight-input').value;
+        localStorage.setItem("weightLog", JSON.stringify(weightLog)); draw();
     }
 
     function addMeal(){
         if(!cal.value) return;
-        meals.push({
-            id: Date.now(), date: dateInput.value, meal: meal.value,
-            cal: +cal.value, prot: +prot.value, carb: +carb.value, fat: +fat.value, fiber: +fiber.value
-        });
-        localStorage.setItem("meals", JSON.stringify(meals));
-        ['cal','prot','carb','fat','fiber'].forEach(i => document.getElementById(i).value="");
-        draw();
+        meals.push({ id: Date.now(), date: dateInput.value, meal: meal.value, cal: +cal.value, prot: +prot.value, carb: +carb.value, fat: +fat.value, fiber: +fiber.value });
+        localStorage.setItem("meals", JSON.stringify(meals)); draw();
     }
 
-    function deleteMeal(id) {
-        meals = meals.filter(m => m.id !== id);
-        localStorage.setItem("meals", JSON.stringify(meals));
-        draw();
+    function exportData() {
+        const data = { meals, waterLog, weightLog, goals };
+        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `nutritrack_backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        lastBackup = Date.now();
+        localStorage.setItem("lastBackup", lastBackup);
+        checkBackup();
     }
 
-    function clearAll() {
-        if(confirm("LIMPAR TUDO?")) { localStorage.clear(); location.reload(); }
+    function importData(event) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const data = JSON.parse(e.target.result);
+            meals = data.meals; waterLog = data.waterLog; weightLog = data.weightLog; goals = data.goals;
+            localStorage.setItem("meals", JSON.stringify(meals));
+            localStorage.setItem("water", JSON.stringify(waterLog));
+            localStorage.setItem("weightLog", JSON.stringify(weightLog));
+            localStorage.setItem("goals", JSON.stringify(goals));
+            location.reload();
+        };
+        reader.readAsText(event.target.files[0]);
     }
+
+    function clearAll() { if(confirm("APAGAR TUDO?")) { localStorage.clear(); location.reload(); } }
 
     function addWater(ml) {
-        const d = dateInput.value;
-        waterLog[d] = (waterLog[d] || 0) + ml;
-        localStorage.setItem("water", JSON.stringify(waterLog));
-        draw();
+        waterLog[dateInput.value] = (waterLog[dateInput.value] || 0) + ml;
+        localStorage.setItem("water", JSON.stringify(waterLog)); draw();
     }
 
-    let macroChart, weightChart;
+    let macroChart, weightChart, weeklyChart, monthlyChart;
 
     function draw(){
         const d = dateInput.value;
         const dayMeals = meals.filter(m => m.date === d);
-        const t = dayMeals.reduce((a, b) => ({
-            cal: a.cal + b.cal, prot: a.prot + b.prot, carb: a.carb + b.carb, fat: a.fat + b.fat, fiber: a.fiber + b.fiber
-        }), {cal:0, prot:0, carb:0, fat:0, fiber:0});
-
+        const t = dayMeals.reduce((a, b) => ({ cal: a.cal + b.cal, prot: a.prot + b.prot, carb: a.carb + b.carb, fat: a.fat + b.fat, fiber: a.fiber + b.fiber }), {cal:0, prot:0, carb:0, fat:0, fiber:0});
+        
         const nutrients = [
             { l: 'KCAL', v: t.cal, g: goals.cal, c: 'var(--primary)' },
             { l: 'PROT', v: t.prot, g: goals.prot, c: 'var(--success)' },
@@ -280,49 +272,34 @@
 
         document.getElementById('summary-bars').innerHTML = nutrients.map(n => {
             const p = Math.min((n.v / n.g) * 100, 100);
-            return `<div class="prog-item">
-                <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>${n.l}</span><span>${n.v}/${n.g}</span></div>
-                <div class="bar-bg"><div class="bar-fill" style="width:${p}%; background:${n.c}"></div></div>
-            </div>`;
+            return `<div class="prog-item"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>${n.l}</span><span>${n.v}/${n.g}</span></div><div class="bar-bg"><div class="bar-fill" style="width:${p}%; background:${n.c}"></div></div></div>`;
         }).join('');
 
         const wVol = waterLog[d] || 0;
         document.getElementById('water-stat').innerText = `${wVol}/${goals.water}ml`;
         document.getElementById('water-bar').style.width = Math.min((wVol/goals.water)*100, 100) + '%';
-
-        document.getElementById('day-log').innerHTML = dayMeals.map(m => `
-            <div class="log-item"><span>${m.meal}:${m.cal}K</span>
-            <button onclick="deleteMeal(${m.id || 0})" style="width:30px;padding:5px;background:var(--danger);box-shadow:none">X</button></div>`).join('');
-
+        document.getElementById('day-log').innerHTML = dayMeals.map(m => `<div class="log-item">${m.meal}: ${m.cal}kcal <button onclick="deleteMeal(${m.id})" style="width:30px;background:var(--danger);box-shadow:none">X</button></div>`).join('');
         renderCharts(t);
     }
 
     function renderCharts(t) {
-        Chart.defaults.font.family = "'Press Start 2P'";
-        Chart.defaults.font.size = 6;
-        Chart.defaults.color = '#e0e0e0';
+        Chart.defaults.font.size = 6; Chart.defaults.color = '#e0e0e0'; Chart.defaults.font.family = "'Press Start 2P'";
         if(macroChart) macroChart.destroy();
-        macroChart = new Chart(document.getElementById("macroChart"), {
-            type: 'doughnut',
-            data: { labels: ['P', 'C', 'G'], datasets: [{ data: [t.prot*4, t.carb*4, t.fat*9], backgroundColor: ['#a3c9a8', '#8aacc8', '#d7b9d5'] }] },
-            options: { plugins: { legend: { position: 'bottom' } } }
-        });
+        macroChart = new Chart(document.getElementById("macroChart"), { type: 'doughnut', data: { labels: ['P', 'C', 'G'], datasets: [{ data: [t.prot*4, t.carb*4, t.fat*9], backgroundColor: ['#a3c9a8', '#8aacc8', '#d7b9d5'] }] } });
         const weightDates = Object.keys(weightLog).sort();
-        const weightValues = weightDates.map(d => weightLog[d]);
         if(weightChart) weightChart.destroy();
-        weightChart = new Chart(document.getElementById("weightChart"), {
-            type: 'line',
-            data: {
-                labels: weightDates.map(d => d.split('-')[2] + '/' + d.split('-')[1]),
-                datasets: [{ label: 'KG', data: weightValues, borderColor: '#e29595', borderWidth: 2, fill: false, tension: 0 }]
-            },
-            options: { scales: { y: { ticks: { color: '#e0e0e0' } }, x: { ticks: { color: '#e0e0e0' } } } }
-        });
+        weightChart = new Chart(document.getElementById("weightChart"), { type: 'line', data: { labels: weightDates.map(d => d.slice(8)), datasets: [{ label: 'KG', data: weightDates.map(d => weightLog[d]), borderColor: '#e29595' }] } });
+        const last7 = Array.from({length:7}, (_,i) => { const date = new Date(); date.setDate(date.getDate()- (6-i)); return date.toISOString().split('T')[0]; });
+        if(weeklyChart) weeklyChart.destroy();
+        weeklyChart = new Chart(document.getElementById("weeklyChart"), { type: 'bar', data: { labels: last7.map(d=>d.slice(8)), datasets: [{ label: 'KCAL', data: last7.map(d => meals.filter(m=>m.date===d).reduce((s,m)=>s+m.cal,0)), backgroundColor: '#8aacc8' }] } });
+        const last30 = Array.from({length:30}, (_,i) => { const date = new Date(); date.setDate(date.getDate()- (29-i)); return date.toISOString().split('T')[0]; });
+        if(monthlyChart) monthlyChart.destroy();
+        monthlyChart = new Chart(document.getElementById("monthlyChart"), { type: 'line', data: { labels: last30.map(d=>d.slice(8)), datasets: [{ label: 'PROT(g)', data: last30.map(d => meals.filter(m=>m.date===d).reduce((s,m)=>s+m.prot,0)), borderColor: '#a3c9a8', fill: true, backgroundColor: 'rgba(163, 201, 168, 0.2)' }] }, options: { elements: { point: { radius: 0 } } } });
     }
 
-    fillGoalInputs();
-    dateInput.onchange = draw;
-    draw();
+    function deleteMeal(id) { meals = meals.filter(m => m.id !== id); localStorage.setItem("meals", JSON.stringify(meals)); draw(); }
+    gcal.value = goals.cal; gprot.value = goals.prot; gcarb.value = goals.carb; gfat.value = goals.fat; gfiber.value = goals.fiber;
+    dateInput.onchange = draw; checkBackup(); draw();
 </script>
 </body>
 </html>
