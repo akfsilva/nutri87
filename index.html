@@ -134,35 +134,57 @@
 </div>
 
 <script>
-    // DADOS HISTÓRICOS MANTIDOS
+    // DADOS HISTÓRICOS ATUALIZADOS (21/12 a 28/12)
     const initialHistory = [
-        { date: '2025-12-21', meal: 'CAFE', cal: 180, prot: 10, carb: 22, fat: 6, fiber: 1 },
-        { date: '2025-12-21', meal: 'ALMOCO', cal: 550, prot: 45, carb: 20, fat: 35, fiber: 6 },
-        { date: '2025-12-21', meal: 'LANCHE', cal: 180, prot: 25, carb: 10, fat: 2, fiber: 0 },
-        { date: '2025-12-21', meal: 'JANTAR', cal: 250, prot: 20, carb: 25, fat: 8, fiber: 4 },
-        { date: '2025-12-22', meal: 'CAFE', cal: 400, prot: 30, carb: 50, fat: 10, fiber: 7 },
-        { date: '2025-12-22', meal: 'ALMOCO', cal: 250, prot: 20, carb: 25, fat: 8, fiber: 4 },
-        { date: '2025-12-22', meal: 'LANCHE', cal: 280, prot: 25, carb: 28, fat: 8, fiber: 6 },
-        { date: '2025-12-22', meal: 'JANTAR', cal: 500, prot: 35, carb: 50, fat: 20, fiber: 5 },
-        { date: '2025-12-22', meal: 'OUTRO', cal: 380, prot: 5, carb: 45, fat: 20, fiber: 2 },
-        { date: '2025-12-23', meal: 'CAFE', cal: 250, prot: 5, carb: 40, fat: 10, fiber: 2 },
-        { date: '2025-12-23', meal: 'ALMOCO', cal: 350, prot: 25, carb: 25, fat: 15, fiber: 5 },
-        { date: '2025-12-23', meal: 'LANCHE', cal: 1000, prot: 45, carb: 80, fat: 60, fiber: 4 },
-        { date: '2025-12-23', meal: 'JANTAR', cal: 600, prot: 20, carb: 50, fat: 35, fiber: 3 },
-        { date: '2025-12-24', meal: 'CAFE', cal: 400, prot: 30, carb: 50, fat: 10, fiber: 7 },
-        { date: '2025-12-24', meal: 'ALMOCO', cal: 300, prot: 15, carb: 40, fat: 12, fiber: 2 },
-        { date: '2025-12-24', meal: 'JANTAR', cal: 450, prot: 35, carb: 20, fat: 18, fiber: 5 },
-        { date: '2025-12-24', meal: 'OUTRO', cal: 80, prot: 1, carb: 15, fat: 3, fiber: 0 },
-        { date: '2025-12-25', meal: 'CAFE', cal: 2, prot: 0, carb: 0, fat: 0, fiber: 0 },
-        { date: '2025-12-25', meal: 'ALMOCO', cal: 500, prot: 40, carb: 20, fat: 30, fiber: 6 },
-        { date: '2025-12-25', meal: 'LANCHE', cal: 270, prot: 22, carb: 8, fat: 14, fiber: 12 },
-        { date: '2025-12-25', meal: 'JANTAR', cal: 400, prot: 25, carb: 30, fat: 20, fiber: 4 },
-        { date: '2025-12-26', meal: 'CAFE', cal: 330, prot: 18, carb: 28, fat: 18, fiber: 6 },
-        { date: '2025-12-26', meal: 'ALMOCO', cal: 580, prot: 35, carb: 30, fat: 35, fiber: 8 },
-        { date: '2025-12-26', meal: 'LANCHE', cal: 370, prot: 32, carb: 33, fat: 12, fiber: 10 },
-        { date: '2025-12-26', meal: 'JANTAR', cal: 480, prot: 32, carb: 28, fat: 22, fiber: 5 },
-        { date: '2025-12-26', meal: 'OUTRO', cal: 30, prot: 0, carb: 6, fat: 2, fiber: 0 },
-        { date: '2025-12-27', meal: 'CAFE', cal: 360, prot: 32, carb: 33, fat: 12, fiber: 10 }
+        // Dia 1 - 21/12
+        { date: '2025-12-21', meal: 'CAFE', cal: 180, prot: 9, carb: 18, fat: 6, fiber: 1 },
+        { date: '2025-12-21', meal: 'ALMOCO', cal: 650, prot: 55, carb: 15, fat: 40, fiber: 4 },
+        { date: '2025-12-21', meal: 'LANCHE', cal: 260, prot: 28, carb: 8, fat: 4, fiber: 1 },
+        { date: '2025-12-21', meal: 'OUTRO', cal: 320, prot: 14, carb: 40, fat: 10, fiber: 2 }, // Guiozas
+        { date: '2025-12-21', meal: 'JANTAR', cal: 220, prot: 15, carb: 20, fat: 6, fiber: 3 }, // Sopa
+        
+        // Dia 2 - 22/12
+        { date: '2025-12-22', meal: 'CAFE', cal: 400, prot: 32, carb: 45, fat: 10, fiber: 9 },
+        { date: '2025-12-22', meal: 'ALMOCO', cal: 350, prot: 25, carb: 30, fat: 10, fiber: 4 },
+        { date: '2025-12-22', meal: 'LANCHE', cal: 300, prot: 30, carb: 25, fat: 8, fiber: 6 },
+        { date: '2025-12-22', meal: 'JANTAR', cal: 480, prot: 28, carb: 50, fat: 18, fiber: 4 },
+        { date: '2025-12-22', meal: 'OUTRO', cal: 400, prot: 5, carb: 45, fat: 22, fiber: 2 }, // Choco
+
+        // Dia 3 - 23/12
+        { date: '2025-12-23', meal: 'CAFE', cal: 250, prot: 4, carb: 35, fat: 10, fiber: 2 },
+        { date: '2025-12-23', meal: 'ALMOCO', cal: 420, prot: 30, carb: 30, fat: 18, fiber: 4 },
+        { date: '2025-12-23', meal: 'LANCHE', cal: 1100, prot: 45, carb: 85, fat: 60, fiber: 6 }, // Fast food
+        { date: '2025-12-23', meal: 'JANTAR', cal: 500, prot: 18, carb: 50, fat: 25, fiber: 3 },
+
+        // Dia 4 - 24/12 (Natal)
+        { date: '2025-12-24', meal: 'CAFE', cal: 420, prot: 30, carb: 55, fat: 10, fiber: 6 },
+        { date: '2025-12-24', meal: 'ALMOCO', cal: 450, prot: 20, carb: 45, fat: 18, fiber: 3 },
+        { date: '2025-12-24', meal: 'JANTAR', cal: 650, prot: 45, carb: 30, fat: 30, fiber: 4 }, // Ceia
+        { date: '2025-12-24', meal: 'OUTRO', cal: 150, prot: 3, carb: 15, fat: 6, fiber: 1 }, // Sobremesa
+
+        // Dia 5 - 25/12
+        { date: '2025-12-25', meal: 'CAFE', cal: 20, prot: 0, carb: 0, fat: 0, fiber: 0 },
+        { date: '2025-12-25', meal: 'ALMOCO', cal: 780, prot: 55, carb: 25, fat: 45, fiber: 4 },
+        { date: '2025-12-25', meal: 'LANCHE', cal: 260, prot: 18, carb: 10, fat: 12, fiber: 8 },
+        { date: '2025-12-25', meal: 'JANTAR', cal: 450, prot: 25, carb: 40, fat: 18, fiber: 6 },
+        { date: '2025-12-25', meal: 'OUTRO', cal: 90, prot: 2, carb: 6, fat: 4, fiber: 1 }, // Ceia
+
+        // Dia 6 - 26/12
+        { date: '2025-12-26', meal: 'CAFE', cal: 300, prot: 20, carb: 25, fat: 12, fiber: 6 },
+        { date: '2025-12-26', meal: 'ALMOCO', cal: 520, prot: 45, carb: 35, fat: 20, fiber: 6 },
+        { date: '2025-12-26', meal: 'LANCHE', cal: 360, prot: 32, carb: 35, fat: 10, fiber: 10 },
+        { date: '2025-12-26', meal: 'JANTAR', cal: 480, prot: 40, carb: 25, fat: 20, fiber: 4 },
+        { date: '2025-12-26', meal: 'OUTRO', cal: 40, prot: 1, carb: 3, fat: 2, fiber: 0 }, // Ceia
+
+        // Dia 7 - 27/12
+        { date: '2025-12-27', meal: 'CAFE', cal: 370, prot: 32, carb: 32, fat: 11, fiber: 11 },
+        { date: '2025-12-27', meal: 'ALMOCO', cal: 550, prot: 55, carb: 35, fat: 25, fiber: 10 },
+        { date: '2025-12-27', meal: 'JANTAR', cal: 480, prot: 20, carb: 45, fat: 26, fiber: 3 },
+        { date: '2025-12-27', meal: 'OUTRO', cal: 380, prot: 25, carb: 8, fat: 30, fiber: 0 }, // Ceia tardia
+
+        // Dia 8 - 28/12 (Parcial)
+        { date: '2025-12-28', meal: 'CAFE', cal: 310, prot: 19, carb: 22, fat: 15, fiber: 5 },
+        { date: '2025-12-28', meal: 'ALMOCO', cal: 540, prot: 52, carb: 47, fat: 9, fiber: 6 }
     ];
 
     const initialWeights = { '2025-12-21': 105, '2025-12-27': 103 };
