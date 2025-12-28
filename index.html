@@ -12,8 +12,8 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('sw-nutri.js')
-            .then(reg => console.log("Nutri87: Sistema Ativo"))
-            .catch(err => console.error("Erro:", err));
+            .then(reg => console.log("Nutri87: Ativo"))
+            .catch(err => console.error(err));
         });
       }
     </script>
@@ -36,14 +36,13 @@
         #backup-alert {
             background: var(--warning); color: #000; padding: 10px; 
             margin-bottom: 20px; border: 4px solid var(--border);
-            display: none; text-align: center; font-size: 7px;
+            display: none; text-align: center; font-size: 7px; cursor: pointer;
         }
         h2, h3 { color: var(--accent); text-transform: uppercase; margin-top: 0; text-shadow: 2px 2px var(--border); }
         input, select, button {
             font-family: 'Press Start 2P', cursive; background: #2c2c34;
             border: 3px solid var(--border); color: var(--text); padding: 10px;
-            font-size: 8px; width: 100%; margin-bottom: 8px; box-sizing: border-box;
-            outline: none;
+            font-size: 8px; width: 100%; margin-bottom: 8px; box-sizing: border-box; outline: none;
         }
         button { background: var(--primary); color: var(--border); cursor: pointer; box-shadow: 3px 3px 0px var(--border); }
         button:active { transform: translate(2px, 2px); box-shadow: 0px 0px; }
@@ -63,7 +62,7 @@
 <div class="container">
     <h2 style="text-align: center; font-size: 10px; margin-bottom: 25px;">[ NUTRI_TRACK_87 ]</h2>
 
-    <div id="backup-alert" onclick="exportData()">⚠️ BACKUP PENDENTE! CLIQUE PARA SALVAR DADOS</div>
+    <div id="backup-alert" onclick="exportData()">⚠️ BACKUP PENDENTE! SALVAR AGORA</div>
 
     <button class="quick-water" onclick="addWater(250)">+ BEBER 250ML ÁGUA</button>
 
@@ -131,26 +130,27 @@
         <h3>6. EVOLUCAO</h3>
         <p style="margin: 5px 0;">PESO (HISTÓRICO):</p>
         <canvas id="weightChart"></canvas>
-        <p style="margin: 15px 0 5px 0;">KCAL (ÚLTIMOS 7 DIAS):</p>
+        <p style="margin: 15px 0 5px 0;">KCAL SEMANAL (LINHA = META):</p>
         <canvas id="weeklyChart"></canvas>
-        <p style="margin: 15px 0 5px 0;">PROT (MENSAL):</p>
+        <p style="margin: 15px 0 5px 0;">PROT MENSAL (G):</p>
         <canvas id="monthlyChart"></canvas>
     </div>
 
     <div class="card">
         <h3>7. SEGURANÇA & LOG</h3>
         <div class="backup-btns">
-            <button onclick="exportData()" style="background: #555; color: white;">EXPORTAR BACKUP</button>
-            <button onclick="document.getElementById('importFile').click()" style="background: #555; color: white;">IMPORTAR BACKUP</button>
+            <button onclick="exportData()" style="background: #555; color: white;">EXPORTAR</button>
+            <button onclick="document.getElementById('importFile').click()" style="background: #555; color: white;">IMPORTAR</button>
             <input type="file" id="importFile" style="display:none" onchange="importData(event)">
         </div>
         <div id="day-log" style="margin-top: 15px;"></div>
         <button onclick="window.print()" style="background: #777; margin-top: 15px;">EXPORT_PDF</button>
-        <button onclick="clearAll()" style="background: var(--danger); margin-top: 10px; font-size: 6px;">APAGAR TUDO (RESET)</button>
+        <button onclick="clearAll()" style="background: var(--danger); margin-top: 10px; font-size: 6px;">APAGAR TUDO</button>
     </div>
 </div>
 
 <script>
+    // DADOS HISTÓRICOS FORNECIDOS
     const fixedHistory = [
         { date: '2025-12-21', meal: 'CAFE', cal: 180, prot: 9, carb: 18, fat: 6, fiber: 1 },
         { date: '2025-12-21', meal: 'ALMOCO', cal: 650, prot: 55, carb: 15, fat: 40, fiber: 4 },
@@ -189,8 +189,10 @@
     ];
 
     let meals = JSON.parse(localStorage.getItem("meals")) || [];
-    const missing = fixedHistory.filter(fh => !meals.some(sm => sm.date === fh.date && sm.meal === fh.meal));
-    if(missing.length > 0) { meals = [...meals, ...missing]; localStorage.setItem("meals", JSON.stringify(meals)); }
+    // Garante que os dados fixos existam sem duplicar
+    fixedHistory.forEach(fh => {
+        if(!meals.some(sm => sm.date === fh.date && sm.meal === fh.meal)) meals.push({...fh, id: Date.now()+Math.random()});
+    });
 
     let waterLog = JSON.parse(localStorage.getItem("water")) || {};
     let weightLog = JSON.parse(localStorage.getItem("weightLog")) || { '2025-12-21': 105, '2025-12-27': 103 };
@@ -207,19 +209,22 @@
 
     function saveGoals(){
         goals = { cal: +gcal.value, prot: +gprot.value, carb: +gcarb.value, fat: +gfat.value, fiber: +gfiber.value, water: 3500 };
-        localStorage.setItem("goals", JSON.stringify(goals)); draw();
+        localStorage.setItem("goals", JSON.stringify(goals)); 
+        draw();
     }
 
     function saveWeight() {
-        if(!document.getElementById('weight-input').value) return;
-        weightLog[dateInput.value] = +document.getElementById('weight-input').value;
-        localStorage.setItem("weightLog", JSON.stringify(weightLog)); draw();
+        if(!weightInput.value) return;
+        weightLog[dateInput.value] = +weightInput.value;
+        localStorage.setItem("weightLog", JSON.stringify(weightLog));
+        draw();
     }
 
     function addMeal(){
         if(!cal.value) return;
         meals.push({ id: Date.now(), date: dateInput.value, meal: meal.value, cal: +cal.value, prot: +prot.value, carb: +carb.value, fat: +fat.value, fiber: +fiber.value });
-        localStorage.setItem("meals", JSON.stringify(meals)); draw();
+        localStorage.setItem("meals", JSON.stringify(meals));
+        draw();
     }
 
     function exportData() {
@@ -227,7 +232,7 @@
         const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `nutritrack_backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `backup_nutri_${new Date().toISOString().split('T')[0]}.json`;
         a.click();
         lastBackup = Date.now();
         localStorage.setItem("lastBackup", lastBackup);
@@ -237,8 +242,8 @@
     function importData(event) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            const data = JSON.parse(e.target.result);
-            meals = data.meals; waterLog = data.waterLog; weightLog = data.weightLog; goals = data.goals;
+            const d = JSON.parse(e.target.result);
+            meals = d.meals; waterLog = d.waterLog; weightLog = d.weightLog; goals = d.goals;
             localStorage.setItem("meals", JSON.stringify(meals));
             localStorage.setItem("water", JSON.stringify(waterLog));
             localStorage.setItem("weightLog", JSON.stringify(weightLog));
@@ -252,7 +257,8 @@
 
     function addWater(ml) {
         waterLog[dateInput.value] = (waterLog[dateInput.value] || 0) + ml;
-        localStorage.setItem("water", JSON.stringify(waterLog)); draw();
+        localStorage.setItem("water", JSON.stringify(waterLog));
+        draw();
     }
 
     let macroChart, weightChart, weeklyChart, monthlyChart;
@@ -275,29 +281,65 @@
             return `<div class="prog-item"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>${n.l}</span><span>${n.v}/${n.g}</span></div><div class="bar-bg"><div class="bar-fill" style="width:${p}%; background:${n.c}"></div></div></div>`;
         }).join('');
 
-        const wVol = waterLog[d] || 0;
-        document.getElementById('water-stat').innerText = `${wVol}/${goals.water}ml`;
-        document.getElementById('water-bar').style.width = Math.min((wVol/goals.water)*100, 100) + '%';
-        document.getElementById('day-log').innerHTML = dayMeals.map(m => `<div class="log-item">${m.meal}: ${m.cal}kcal <button onclick="deleteMeal(${m.id})" style="width:30px;background:var(--danger);box-shadow:none">X</button></div>`).join('');
+        waterStat.innerText = `${waterLog[d] || 0}/${goals.water}ml`;
+        waterBar.style.width = Math.min(((waterLog[d] || 0)/goals.water)*100, 100) + '%';
+        dayLog.innerHTML = dayMeals.map(m => `<div class="log-item">${m.meal}: ${m.cal}kcal <button onclick="deleteMeal(${m.id})" style="width:30px;background:var(--danger);box-shadow:none">X</button></div>`).join('');
         renderCharts(t);
     }
 
     function renderCharts(t) {
         Chart.defaults.font.size = 6; Chart.defaults.color = '#e0e0e0'; Chart.defaults.font.family = "'Press Start 2P'";
+        
         if(macroChart) macroChart.destroy();
         macroChart = new Chart(document.getElementById("macroChart"), { type: 'doughnut', data: { labels: ['P', 'C', 'G'], datasets: [{ data: [t.prot*4, t.carb*4, t.fat*9], backgroundColor: ['#a3c9a8', '#8aacc8', '#d7b9d5'] }] } });
+        
         const weightDates = Object.keys(weightLog).sort();
         if(weightChart) weightChart.destroy();
         weightChart = new Chart(document.getElementById("weightChart"), { type: 'line', data: { labels: weightDates.map(d => d.slice(8)), datasets: [{ label: 'KG', data: weightDates.map(d => weightLog[d]), borderColor: '#e29595' }] } });
+        
         const last7 = Array.from({length:7}, (_,i) => { const date = new Date(); date.setDate(date.getDate()- (6-i)); return date.toISOString().split('T')[0]; });
         if(weeklyChart) weeklyChart.destroy();
-        weeklyChart = new Chart(document.getElementById("weeklyChart"), { type: 'bar', data: { labels: last7.map(d=>d.slice(8)), datasets: [{ label: 'KCAL', data: last7.map(d => meals.filter(m=>m.date===d).reduce((s,m)=>s+m.cal,0)), backgroundColor: '#8aacc8' }] } });
+        weeklyChart = new Chart(document.getElementById("weeklyChart"), { 
+            type: 'bar', 
+            data: { 
+                labels: last7.map(d=>d.slice(8)), 
+                datasets: [
+                    { label: 'KCAL', data: last7.map(d => meals.filter(m=>m.date===d).reduce((s,m)=>s+m.cal,0)), backgroundColor: '#8aacc8' },
+                ] 
+            },
+            options: {
+                plugins: {
+                    annotation: { // Nota: Para simplificar e evitar libs extras, usamos um plugin nativo do Chart.js
+                    }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        suggestedMax: goals.cal + 500,
+                        grid: { color: '#444' }
+                    }
+                }
+            },
+            plugins: [{
+                afterDraw: chart => {
+                    const {ctx, chartArea: {left, right, top, bottom}, scales: {y}} = chart;
+                    const yPos = y.getPixelForValue(goals.cal);
+                    if (yPos >= top && yPos <= bottom) {
+                        ctx.save();
+                        ctx.strokeStyle = '#e29595';ctx.setLineDash([5, 5]);ctx.lineWidth = 2;
+                        ctx.beginPath();ctx.moveTo(left, yPos);ctx.lineTo(right, yPos);ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+            }]
+        });
+
         const last30 = Array.from({length:30}, (_,i) => { const date = new Date(); date.setDate(date.getDate()- (29-i)); return date.toISOString().split('T')[0]; });
         if(monthlyChart) monthlyChart.destroy();
-        monthlyChart = new Chart(document.getElementById("monthlyChart"), { type: 'line', data: { labels: last30.map(d=>d.slice(8)), datasets: [{ label: 'PROT(g)', data: last30.map(d => meals.filter(m=>m.date===d).reduce((s,m)=>s+m.prot,0)), borderColor: '#a3c9a8', fill: true, backgroundColor: 'rgba(163, 201, 168, 0.2)' }] }, options: { elements: { point: { radius: 0 } } } });
+        monthlyChart = new Chart(document.getElementById("monthlyChart"), { type: 'line', data: { labels: last30.map(d=>d.slice(8)), datasets: [{ label: 'PROT(G)', data: last30.map(d => meals.filter(m=>m.date===d).reduce((s,m)=>s+m.prot,0)), borderColor: '#a3c9a8', fill: true, backgroundColor: 'rgba(163, 201, 168, 0.2)' }] }, options: { elements: { point: { radius: 0 } } } });
     }
 
-    function deleteMeal(id) { meals = meals.filter(m => m.id !== id); localStorage.setItem("meals", JSON.stringify(meals)); draw(); }
+    function deleteMeal(id) { meals = meals.filter(m => m.id != id); localStorage.setItem("meals", JSON.stringify(meals)); draw(); }
     gcal.value = goals.cal; gprot.value = goals.prot; gcarb.value = goals.carb; gfat.value = goals.fat; gfiber.value = goals.fiber;
     dateInput.onchange = draw; checkBackup(); draw();
 </script>
