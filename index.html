@@ -11,9 +11,7 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw-nutri.js')
-            .then(reg => console.log("Nutri87: Ativo"))
-            .catch(err => console.error(err));
+          navigator.serviceWorker.register('sw-nutri.js').catch(err => console.log(err));
         });
       }
     </script>
@@ -61,7 +59,6 @@
 
 <div class="container">
     <h2 style="text-align: center; font-size: 10px; margin-bottom: 25px;">[ NUTRI_TRACK_87 ]</h2>
-
     <div id="backup-alert" onclick="exportData()">⚠️ BACKUP PENDENTE! SALVAR AGORA</div>
 
     <button class="quick-water" onclick="addWater(250)">+ BEBER 250ML ÁGUA</button>
@@ -95,9 +92,7 @@
                 <option>LANCHE</option><option>JANTAR</option><option>OUTRO</option>
             </select>
             <select id="hunger">
-                <option value="">FOME?</option>
-                <option value="sem">NAO</option>
-                <option value="com">SIM</option>
+                <option value="">FOME?</option><option value="sem">NAO</option><option value="com">SIM</option>
             </select>
         </div>
         <div class="grid">
@@ -150,7 +145,7 @@
 </div>
 
 <script>
-    // DADOS HISTÓRICOS FORNECIDOS
+    // 1. CARREGAMENTO INICIAL DE DADOS
     const fixedHistory = [
         { date: '2025-12-21', meal: 'CAFE', cal: 180, prot: 9, carb: 18, fat: 6, fiber: 1 },
         { date: '2025-12-21', meal: 'ALMOCO', cal: 650, prot: 55, carb: 15, fat: 40, fiber: 4 },
@@ -189,12 +184,11 @@
     ];
 
     let meals = JSON.parse(localStorage.getItem("meals")) || [];
-    // Garante que os dados fixos existam sem duplicar
     fixedHistory.forEach(fh => {
         if(!meals.some(sm => sm.date === fh.date && sm.meal === fh.meal)) meals.push({...fh, id: Date.now()+Math.random()});
     });
 
-    let waterLog = JSON.parse(localStorage.getItem("water")) || {};
+    let waterLog = JSON.parse(localStorage.getItem("waterLog")) || {};
     let weightLog = JSON.parse(localStorage.getItem("weightLog")) || { '2025-12-21': 105, '2025-12-27': 103 };
     let goals = JSON.parse(localStorage.getItem("goals")) || {cal:1750, prot:140, carb:150, fat:55, fiber:25, water:3500};
     let lastBackup = localStorage.getItem("lastBackup") || Date.now();
@@ -202,11 +196,7 @@
     const dateInput = document.getElementById('date');
     dateInput.valueAsDate = new Date();
 
-    function checkBackup() {
-        const diff = (Date.now() - lastBackup) / (1000 * 60 * 60 * 24);
-        document.getElementById('backup-alert').style.display = diff > 7 ? 'block' : 'none';
-    }
-
+    // 2. FUNÇÕES DE INTERFACE
     function saveGoals(){
         goals = { cal: +gcal.value, prot: +gprot.value, carb: +gcarb.value, fat: +gfat.value, fiber: +gfiber.value, water: 3500 };
         localStorage.setItem("goals", JSON.stringify(goals)); 
@@ -214,8 +204,8 @@
     }
 
     function saveWeight() {
-        if(!weightInput.value) return;
-        weightLog[dateInput.value] = +weightInput.value;
+        if(!document.getElementById('weight-input').value) return;
+        weightLog[dateInput.value] = +document.getElementById('weight-input').value;
         localStorage.setItem("weightLog", JSON.stringify(weightLog));
         draw();
     }
@@ -227,6 +217,14 @@
         draw();
     }
 
+    function addWater(ml) {
+        const d = dateInput.value;
+        waterLog[d] = (waterLog[d] || 0) + ml;
+        localStorage.setItem("waterLog", JSON.stringify(waterLog));
+        draw();
+    }
+
+    // 3. SEGURANÇA E BACKUP (CORREÇÃO DA ÁGUA AQUI)
     function exportData() {
         const data = { meals, waterLog, weightLog, goals };
         const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
@@ -242,25 +240,29 @@
     function importData(event) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            const d = JSON.parse(e.target.result);
-            meals = d.meals; waterLog = d.waterLog; weightLog = d.weightLog; goals = d.goals;
-            localStorage.setItem("meals", JSON.stringify(meals));
-            localStorage.setItem("water", JSON.stringify(waterLog));
-            localStorage.setItem("weightLog", JSON.stringify(weightLog));
-            localStorage.setItem("goals", JSON.stringify(goals));
-            location.reload();
+            try {
+                const d = JSON.parse(e.target.result);
+                if(d.meals) meals = d.meals;
+                if(d.waterLog) waterLog = d.waterLog; // Corrigido nome da variável
+                if(d.weightLog) weightLog = d.weightLog;
+                if(d.goals) goals = d.goals;
+                
+                localStorage.setItem("meals", JSON.stringify(meals));
+                localStorage.setItem("waterLog", JSON.stringify(waterLog));
+                localStorage.setItem("weightLog", JSON.stringify(weightLog));
+                localStorage.setItem("goals", JSON.stringify(goals));
+                location.reload();
+            } catch(err) { alert("Erro ao ler arquivo!"); }
         };
         reader.readAsText(event.target.files[0]);
     }
 
-    function clearAll() { if(confirm("APAGAR TUDO?")) { localStorage.clear(); location.reload(); } }
-
-    function addWater(ml) {
-        waterLog[dateInput.value] = (waterLog[dateInput.value] || 0) + ml;
-        localStorage.setItem("water", JSON.stringify(waterLog));
-        draw();
+    function checkBackup() {
+        const diff = (Date.now() - lastBackup) / (1000 * 60 * 60 * 24);
+        document.getElementById('backup-alert').style.display = diff > 7 ? 'block' : 'none';
     }
 
+    // 4. DESENHO DOS GRÁFICOS
     let macroChart, weightChart, weeklyChart, monthlyChart;
 
     function draw(){
@@ -268,6 +270,7 @@
         const dayMeals = meals.filter(m => m.date === d);
         const t = dayMeals.reduce((a, b) => ({ cal: a.cal + b.cal, prot: a.prot + b.prot, carb: a.carb + b.carb, fat: a.fat + b.fat, fiber: a.fiber + b.fiber }), {cal:0, prot:0, carb:0, fat:0, fiber:0});
         
+        // Sumário de barras
         const nutrients = [
             { l: 'KCAL', v: t.cal, g: goals.cal, c: 'var(--primary)' },
             { l: 'PROT', v: t.prot, g: goals.prot, c: 'var(--success)' },
@@ -275,73 +278,72 @@
             { l: 'GORD', v: t.fat, g: goals.fat, c: '#f39c12' },
             { l: 'FIBRA', v: t.fiber, g: goals.fiber, c: '#e67e22' }
         ];
-
         document.getElementById('summary-bars').innerHTML = nutrients.map(n => {
             const p = Math.min((n.v / n.g) * 100, 100);
             return `<div class="prog-item"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>${n.l}</span><span>${n.v}/${n.g}</span></div><div class="bar-bg"><div class="bar-fill" style="width:${p}%; background:${n.c}"></div></div></div>`;
         }).join('');
 
-        waterStat.innerText = `${waterLog[d] || 0}/${goals.water}ml`;
-        waterBar.style.width = Math.min(((waterLog[d] || 0)/goals.water)*100, 100) + '%';
-        dayLog.innerHTML = dayMeals.map(m => `<div class="log-item">${m.meal}: ${m.cal}kcal <button onclick="deleteMeal(${m.id})" style="width:30px;background:var(--danger);box-shadow:none">X</button></div>`).join('');
+        // Hidratação
+        const currentWater = waterLog[d] || 0;
+        document.getElementById('water-stat').innerText = `${currentWater}/${goals.water}ml`;
+        document.getElementById('water-bar').style.width = Math.min((currentWater/goals.water)*100, 100) + '%';
+        
+        // Log do dia
+        document.getElementById('day-log').innerHTML = dayMeals.map(m => `<div class="log-item">${m.meal}: ${m.cal}kcal <button onclick="deleteMeal(${m.id})" style="width:30px;background:var(--danger);box-shadow:none">X</button></div>`).join('');
+        
         renderCharts(t);
     }
 
     function renderCharts(t) {
         Chart.defaults.font.size = 6; Chart.defaults.color = '#e0e0e0'; Chart.defaults.font.family = "'Press Start 2P'";
         
+        // Macros
         if(macroChart) macroChart.destroy();
         macroChart = new Chart(document.getElementById("macroChart"), { type: 'doughnut', data: { labels: ['P', 'C', 'G'], datasets: [{ data: [t.prot*4, t.carb*4, t.fat*9], backgroundColor: ['#a3c9a8', '#8aacc8', '#d7b9d5'] }] } });
         
+        // Peso
         const weightDates = Object.keys(weightLog).sort();
         if(weightChart) weightChart.destroy();
         weightChart = new Chart(document.getElementById("weightChart"), { type: 'line', data: { labels: weightDates.map(d => d.slice(8)), datasets: [{ label: 'KG', data: weightDates.map(d => weightLog[d]), borderColor: '#e29595' }] } });
         
+        // Semanal com Linha de Meta
         const last7 = Array.from({length:7}, (_,i) => { const date = new Date(); date.setDate(date.getDate()- (6-i)); return date.toISOString().split('T')[0]; });
         if(weeklyChart) weeklyChart.destroy();
         weeklyChart = new Chart(document.getElementById("weeklyChart"), { 
             type: 'bar', 
             data: { 
                 labels: last7.map(d=>d.slice(8)), 
-                datasets: [
-                    { label: 'KCAL', data: last7.map(d => meals.filter(m=>m.date===d).reduce((s,m)=>s+m.cal,0)), backgroundColor: '#8aacc8' },
-                ] 
+                datasets: [{ label: 'KCAL', data: last7.map(d => meals.filter(m=>m.date===d).reduce((s,m)=>s+m.cal,0)), backgroundColor: '#8aacc8' }] 
             },
             options: {
-                plugins: {
-                    annotation: { // Nota: Para simplificar e evitar libs extras, usamos um plugin nativo do Chart.js
-                    }
-                },
-                scales: {
-                    y: { 
-                        beginAtZero: true, 
-                        suggestedMax: goals.cal + 500,
-                        grid: { color: '#444' }
-                    }
-                }
+                scales: { y: { beginAtZero: true, suggestedMax: goals.cal + 500 } }
             },
             plugins: [{
                 afterDraw: chart => {
                     const {ctx, chartArea: {left, right, top, bottom}, scales: {y}} = chart;
                     const yPos = y.getPixelForValue(goals.cal);
                     if (yPos >= top && yPos <= bottom) {
-                        ctx.save();
-                        ctx.strokeStyle = '#e29595';ctx.setLineDash([5, 5]);ctx.lineWidth = 2;
-                        ctx.beginPath();ctx.moveTo(left, yPos);ctx.lineTo(right, yPos);ctx.stroke();
-                        ctx.restore();
+                        ctx.save(); ctx.strokeStyle = '#e29595'; ctx.setLineDash([5, 5]); ctx.lineWidth = 2;
+                        ctx.beginPath(); ctx.moveTo(left, yPos); ctx.lineTo(right, yPos); ctx.stroke(); ctx.restore();
                     }
                 }
             }]
         });
 
+        // Mensal
         const last30 = Array.from({length:30}, (_,i) => { const date = new Date(); date.setDate(date.getDate()- (29-i)); return date.toISOString().split('T')[0]; });
         if(monthlyChart) monthlyChart.destroy();
         monthlyChart = new Chart(document.getElementById("monthlyChart"), { type: 'line', data: { labels: last30.map(d=>d.slice(8)), datasets: [{ label: 'PROT(G)', data: last30.map(d => meals.filter(m=>m.date===d).reduce((s,m)=>s+m.prot,0)), borderColor: '#a3c9a8', fill: true, backgroundColor: 'rgba(163, 201, 168, 0.2)' }] }, options: { elements: { point: { radius: 0 } } } });
     }
 
     function deleteMeal(id) { meals = meals.filter(m => m.id != id); localStorage.setItem("meals", JSON.stringify(meals)); draw(); }
+    function clearAll() { if(confirm("APAGAR TUDO?")) { localStorage.clear(); location.reload(); } }
+
+    // Inicialização
     gcal.value = goals.cal; gprot.value = goals.prot; gcarb.value = goals.carb; gfat.value = goals.fat; gfiber.value = goals.fiber;
-    dateInput.onchange = draw; checkBackup(); draw();
+    dateInput.onchange = draw; 
+    checkBackup(); 
+    draw();
 </script>
 </body>
 </html>
